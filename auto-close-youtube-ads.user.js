@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Auto Close YouTube Ads
+// @name         Auto Close YouTube Ads ROY
 // @namespace    http://fuzetsu.acypa.com
-// @version      1.4.7
+// @version      1.0
 // @description  Close and/or Mute YouTube ads automatically!
 // @author       fuzetsu
 // @run-at       document-body
@@ -13,6 +13,8 @@
 // @grant        GM_registerMenuCommand
 // @require      https://cdn.jsdelivr.net/gh/fuzetsu/userscripts@ec863aa92cea78a20431f92e80ac0e93262136df/wait-for-elements/wait-for-elements.js
 // @require      https://cdn.jsdelivr.net/gh/kufii/My-UserScripts@23586fd0a72b587a1786f7bb9088e807a5b53e79/libs/gm_config.js
+// @downloadURL https://update.greasyfork.org/scripts/9165/Auto%20Close%20YouTube%20Ads.user.js
+// @updateURL https://update.greasyfork.org/scripts/9165/Auto%20Close%20YouTube%20Ads.meta.js
 // ==/UserScript==
 /* globals GM_getValue GM_setValue GM_deleteValue GM_registerMenuCommand GM_config waitForElems waitForUrl */
 /**
@@ -23,7 +25,7 @@
 const CSS = {
   // the button used to skip an ad
   skipButton:
-    '.videoAdUiSkipButton,.ytp-ad-skip-button,.ytp-ad-skip-button-modern,.ytp-skip-ad-button',
+    '.videoAdUiSkipButton,.ytp-ad-skip-button,.ytp-ad-skip-button-modern,.ytp-skip-ad-button,.ytp-skip-ad-button',
   // the area showing the countdown to the skip button showing
   preSkipButton: '.videoAdUiPreSkipButton,.ytp-ad-preview-container,.ytp-preview-ad',
   // little x that closes banner ads
@@ -133,6 +135,21 @@ let conf = config.load()
 
 config.onsave = cfg => (conf = cfg)
 
+function getAbsolutePosition(elem) {
+	// TODO: detect OS for determining border size
+	const windowsBorderSize = 8;
+	let toolbarHeight = 0;
+	if (window.innerHeight !== window.screen.height) {
+		toolbarHeight = window.outerHeight - window.innerHeight - (2 * windowsBorderSize);
+	}
+	const boundingRect = elem.getBoundingClientRect();
+
+	return [
+		~~(window.screenX + windowsBorderSize + boundingRect.x + boundingRect.width / 2),
+		~~(window.screenY + windowsBorderSize + boundingRect.y + toolbarHeight + boundingRect.height / 2),
+	];
+}
+
 function createMessageElement() {
   const elem = document.createElement('div')
   elem.setAttribute(
@@ -210,13 +227,17 @@ function waitForAds() {
           // if not visible
           if (btn.offsetParent == null) return
           setTimeout(() => {
-            if (DONT_SKIP) {
+            if (DONT_SKIP || !document.hasFocus()) {
               util.log('not skipping...')
               DONT_SKIP = false
               return
             }
-            util.log('clicking skip button')
-            btn.click()
+            util.log('clicking skip button');
+            const pos = getAbsolutePosition(btn);
+            console.log(`Skip button @ ${pos}`);
+            // TODO: document.hasFocus()
+            fetch(`http://localhost:13276/?x=${pos[0]}&y=${pos[1]}`);
+            //btn.click()
           }, conf.secWaitVideo * 1000)
           return true
         })
